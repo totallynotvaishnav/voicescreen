@@ -43,6 +43,10 @@ class BolnaService:
         payload = {
             "agent_id": self.settings.BOLNA_AGENT_ID,
             "recipient_phone_number": phone_number,
+            "user_data": {
+                "name": candidate_name,
+                "job_title": job_title
+            }
         }
 
         async with httpx.AsyncClient(timeout=30.0) as client:
