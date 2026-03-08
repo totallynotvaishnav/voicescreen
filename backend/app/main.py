@@ -107,3 +107,20 @@ async def get_dashboard_stats(
 @app.get("/api/health")
 async def health_check():
     return {"status": "healthy", "service": "VoiceScreen API"}
+
+
+@app.get("/api/db_migrate")
+async def db_migrate(db: AsyncSession = Depends(get_db)):
+    from sqlalchemy import text
+    try:
+        await db.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS hashed_password VARCHAR;"))
+    except Exception as e:
+        logger.error(f"Failed to add hashed_password: {e}")
+        
+    try:
+        await db.execute(text("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;"))
+    except Exception as e:
+        logger.error(f"Failed to add user_id: {e}")
+        
+    await db.commit()
+    return {"status": "Migration endpoint executed. Check logs if there were issues."}
