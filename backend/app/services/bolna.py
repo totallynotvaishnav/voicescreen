@@ -7,6 +7,7 @@ logger = logging.getLogger(__name__)
 
 class BolnaAPIError(Exception):
     """Raised when the Bolna API returns an error."""
+
     def __init__(self, status_code: int, detail: str):
         self.status_code = status_code
         self.detail = detail
@@ -28,15 +29,15 @@ class BolnaService:
         self, phone_number: str, candidate_name: str, job_title: str = ""
     ) -> dict:
         """Initiate an outbound call via Bolna.
-        
+
         Args:
             phone_number: Recipient phone number (E.164 format, e.g. +91...)
             candidate_name: Candidate's name (for logging)
             job_title: Job title (for logging)
-            
+
         Returns:
             dict with execution_id, run_id, status from Bolna API
-            
+
         Raises:
             BolnaAPIError: If the API returns a non-200 status
         """
@@ -59,7 +60,8 @@ class BolnaService:
                 raise BolnaAPIError(response.status_code, response.text)
 
             data = response.json()
-            logger.info(f"Call initiated for {candidate_name}: execution_id={data.get('execution_id')}")
+            logger.info(
+                f"Call initiated for {candidate_name}: execution_id={data.get('execution_id')}")
             return data
 
     async def get_execution(self, execution_id: str) -> dict:
