@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import init_db, get_db
-from app.models import Candidate, Interview, Score, User
+from app.models import Candidate, Interview, Score, User, Job
 from app.schemas import DashboardStats
 from app.routers import jobs, candidates, interviews, webhooks, auth
 from app.dependencies import get_current_user
