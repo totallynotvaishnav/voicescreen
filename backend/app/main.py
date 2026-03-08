@@ -1,7 +1,6 @@
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends, Request
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -45,21 +44,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    import traceback
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "Internal Server Error", "traceback": traceback.format_exc()}
-    )
-
 # Include routers
 app.include_router(auth.router)
 app.include_router(jobs.router)
 app.include_router(candidates.router)
 app.include_router(interviews.router)
 app.include_router(webhooks.router)
-
 
 @app.get("/api/dashboard/stats", response_model=DashboardStats, tags=["Dashboard"])
 async def get_dashboard_stats(
@@ -107,17 +97,3 @@ async def get_dashboard_stats(
 @app.get("/api/health")
 async def health_check():
     return {"status": "healthy", "service": "VoiceScreen API"}
-
-
-@app.get("/api/force_migrate")
-async def force_migrate(db: AsyncSession = Depends(get_db)):
-    from app.database import engine, Base
-    try:
-        async with engine.begin() as conn:
-            # Drop all tables and recreate them from the updated models
-            await conn.run_sync(Base.metadata.drop_all)
-            await conn.run_sync(Base.metadata.create_all)
-        return {"status": "success: all tables dropped and recreated"}
-    except Exception as e:
-        import traceback
-        return {"status": "error", "message": str(e), "trace": traceback.format_exc()}
