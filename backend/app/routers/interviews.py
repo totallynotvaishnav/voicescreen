@@ -4,17 +4,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 from app.database import get_db
-from app.models import Candidate, Interview, Job, Score
+from app.models import Candidate, Interview, Job, Score, User
 from app.schemas import StartScreeningResponse, InterviewResponse
 from app.services.bolna import BolnaService
 from app.services.scoring import ScoringEngine
+from app.dependencies import get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["Interviews"])
 
 
 @router.post("/jobs/{job_id}/start-screening", response_model=StartScreeningResponse)
-async def start_screening(job_id: str, db: AsyncSession = Depends(get_db)):
+async def start_screening(
+    job_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """Trigger Bolna outbound calls for all pending candidates in a job."""
     result = await db.execute(select(Job).where(Job.id == job_id))
     job = result.scalar_one_or_none()
@@ -72,7 +77,11 @@ async def start_screening(job_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/interviews/{interview_id}", response_model=InterviewResponse)
-async def get_interview(interview_id: str, db: AsyncSession = Depends(get_db)):
+async def get_interview(
+    interview_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     result = await db.execute(
         select(Interview).where(Interview.id == interview_id)
     )
@@ -92,7 +101,11 @@ async def get_interview(interview_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/interviews/{interview_id}/rescore")
-async def rescore_interview(interview_id: str, db: AsyncSession = Depends(get_db)):
+async def rescore_interview(
+    interview_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """Re-run GPT scoring on an existing interview transcript."""
     result = await db.execute(
         select(Interview)

@@ -3,9 +3,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 from app.database import get_db
-from app.models import Candidate, Interview, Score, Job
-from app.schemas import CandidateResponse, CandidateListResponse, CandidateDetailResponse, CSVUploadResponse, InterviewResponse, ScoreResponse
+from app.models import Candidate, Interview, Score, Job, User
+from app.schemas import CandidateResponse, CandidateListResponse, CandidateDetailResponse, CSVUploadResponse, InterviewResponse, ScoreResponse, CandidateCreate
 from app.services.csv_parser import parse_candidates_csv
+from app.dependencies import get_current_user
 
 router = APIRouter(prefix="/api", tags=["Candidates"])
 
@@ -15,9 +16,10 @@ async def upload_candidates_csv(
     job_id: str,
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     # Verify job exists
-    result = await db.execute(select(Job).where(Job.id == job_id))
+    result = await db.execute(select(Job).where(Job.id == job_id, Job.user_id == current_user.id))
     job = result.scalar_one_or_none()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -41,17 +43,56 @@ async def upload_candidates_csv(
     return CSVUploadResponse(created=created, errors=errors)
 
 
+@router.post("/jobs/{job_id}/candidates", response_model=CandidateResponse, status_code=201)
+async def create_candidate(
+    job_id: str,
+    candidate: CandidateCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Manually add a single candidate to a job."""
+    result = await db.execute(select(Job).where(Job.id == job_id, Job.user_id == current_user.id))
+    job = result.scalar_one_or_none()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    new_candidate = Candidate(
+        job_id=job_id,
+        name=candidate.name,
+        email=candidate.email,
+        phone=candidate.phone,
+        resume_url=candidate.resume_url,
+        status="pending" # Default status for manually added candidates
+    )
+    db.add(new_candidate)
+    await db.commit()
+    await db.refresh(new_candidate)
+    return CandidateResponse(
+        id=new_candidate.id,
+        job_id=new_candidate.job_id,
+        name=new_candidate.name,
+        email=new_candidate.email,
+        phone=new_candidate.phone,
+        resume_url=new_candidate.resume_url,
+        status=new_candidate.status,
+        created_at=new_candidate.created_at,
+        overall_score=None # No score yet for a new candidate
+    )
+
+
 @router.get("/jobs/{job_id}/candidates", response_model=CandidateListResponse)
 async def list_candidates(
     job_id: str,
     sort_by: str = "score",
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     # Get candidates with their interview scores
     result = await db.execute(
         select(Candidate)
+        .join(Candidate.job)
         .options(joinedload(Candidate.interview).joinedload(Interview.score))
-        .where(Candidate.job_id == job_id)
+        .where(Candidate.job_id == job_id, Job.user_id == current_user.id)
         .order_by(Candidate.created_at.desc())
     )
     candidates = result.unique().scalars().all()
@@ -85,11 +126,13 @@ async def list_candidates(
 async def get_candidate_detail(
     candidate_id: str,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     result = await db.execute(
         select(Candidate)
+        .join(Candidate.job)
         .options(joinedload(Candidate.interview).joinedload(Interview.score), joinedload(Candidate.job))
-        .where(Candidate.id == candidate_id)
+        .where(Candidate.id == candidate_id, Job.user_id == current_user.id)
     )
     candidate = result.unique().scalar_one_or_none()
     if not candidate:
@@ -143,8 +186,13 @@ async def get_candidate_detail(
 async def schedule_candidate(
     candidate_id: str,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    result = await db.execute(select(Candidate).where(Candidate.id == candidate_id))
+    result = await db.execute(
+        select(Candidate)
+        .join(Candidate.job)
+        .where(Candidate.id == candidate_id, Job.user_id == current_user.id)
+    )
     candidate = result.scalar_one_or_none()
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")

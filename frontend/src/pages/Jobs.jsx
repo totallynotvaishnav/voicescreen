@@ -17,7 +17,7 @@ export default function Jobs() {
   async function loadJobs() {
     try {
       const res = await api.get('/jobs');
-      setJobs(res.data.jobs);
+      setJobs(res.data);
     } catch (err) {
       console.error('Failed to load jobs:', err);
     }

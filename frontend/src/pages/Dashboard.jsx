@@ -27,11 +27,11 @@ export default function Dashboard() {
         api.get('/jobs'),
       ]);
       setStats(statsRes.data);
-      setJobs(jobsRes.data.jobs);
+      setJobs(jobsRes.data);
 
       // Load candidates from all jobs
       const allCandidates = [];
-      for (const job of jobsRes.data.jobs) {
+      for (const job of jobsRes.data) {
         const res = await api.get(`/jobs/${job.id}/candidates?sort_by=score`);
         for (const c of res.data.candidates) {
           allCandidates.push({ ...c, job_title: job.title });

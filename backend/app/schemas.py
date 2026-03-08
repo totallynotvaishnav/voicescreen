@@ -1,6 +1,26 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, HttpUrl, EmailStr
 from typing import Optional
 from datetime import datetime
+from uuid import UUID
+
+
+# ── User Schemas ─────────────────────────────────────────────
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class UserCreate(BaseModel):
+    email: EmailStr
+    password: str
+
+class UserResponse(BaseModel):
+    id: UUID
+    email: EmailStr
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
 
 
 # ── Job Schemas ──────────────────────────────────────────────
@@ -34,6 +54,10 @@ class CandidateBase(BaseModel):
     email: Optional[str] = None
     phone: str
     resume_url: Optional[str] = None
+
+
+class CandidateCreate(CandidateBase):
+    pass
 
 
 class CandidateResponse(BaseModel):

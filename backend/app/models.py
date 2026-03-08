@@ -1,8 +1,18 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import String, Text, Float, ForeignKey, DateTime, JSON
+from sqlalchemy import String, Text, Float, ForeignKey, DateTime, JSON, UUID, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import JSONB
 from app.database import Base
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email = mapped_column(String, unique=True, index=True, nullable=False)
+    hashed_password = mapped_column(String, nullable=False)
+    created_at = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 def utcnow():
@@ -17,11 +27,13 @@ class Job(Base):
     __tablename__ = "jobs"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    user_id = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     department: Mapped[str] = mapped_column(String(255), nullable=True)
     description: Mapped[str] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
+    user: Mapped["User"] = relationship()
     candidates: Mapped[list["Candidate"]] = relationship(back_populates="job", cascade="all, delete-orphan")
 
 
