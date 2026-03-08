@@ -109,18 +109,15 @@ async def health_check():
     return {"status": "healthy", "service": "VoiceScreen API"}
 
 
-@app.get("/api/db_migrate")
-async def db_migrate(db: AsyncSession = Depends(get_db)):
-    from sqlalchemy import text
+@app.get("/api/force_migrate")
+async def force_migrate(db: AsyncSession = Depends(get_db)):
+    from app.database import engine, Base
     try:
-        await db.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS hashed_password VARCHAR;"))
+        async with engine.begin() as conn:
+            # Drop all tables and recreate them from the updated models
+            await conn.run_sync(Base.metadata.drop_all)
+            await conn.run_sync(Base.metadata.create_all)
+        return {"status": "success: all tables dropped and recreated"}
     except Exception as e:
-        logger.error(f"Failed to add hashed_password: {e}")
-        
-    try:
-        await db.execute(text("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;"))
-    except Exception as e:
-        logger.error(f"Failed to add user_id: {e}")
-        
-    await db.commit()
-    return {"status": "Migration endpoint executed. Check logs if there were issues."}
+        import traceback
+        return {"status": "error", "message": str(e), "trace": traceback.format_exc()}
