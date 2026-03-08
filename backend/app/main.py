@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import init_db, get_db
 from app.models import Candidate, Interview, Score, User, Job
 from app.schemas import DashboardStats
-from app.routers import jobs, candidates, interviews, webhooks, auth
+from app.routers import jobs, candidates, interviews, webhooks, auth, debug
 from app.dependencies import get_current_user
 
 logging.basicConfig(level=logging.INFO)
@@ -50,6 +50,7 @@ app.include_router(jobs.router)
 app.include_router(candidates.router)
 app.include_router(interviews.router)
 app.include_router(webhooks.router)
+app.include_router(debug.router)
 
 @app.get("/api/dashboard/stats", response_model=DashboardStats, tags=["Dashboard"])
 async def get_dashboard_stats(
